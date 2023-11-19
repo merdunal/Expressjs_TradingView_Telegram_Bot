@@ -19,25 +19,43 @@ const init = async () => {
 app.post(URI, async (req, res) => {
     console.log(req.body);
 
-    if (req.body.tradingData) {
-        const tradingData = req.body.tradingData;
-        console.log('Received trading data:', tradingData);
+    if (req.body) {
+        const alertData = req.body;
 
-        // Format the trading data
-        const formattedData = Object.keys(tradingData)
-            .map(key => `${key}: ${tradingData[key]}`)
-            .join('\n');
+        if (alertData.ticker) {
+            // Extract relevant data from the TradingView alert
+            const { ticker, close, exchange, interval } = alertData;
 
-        await axios.post(`${TELEGRAM_API}/sendMessage`, {
-            chat_id: 6129229736,
-            text: formattedData,
-        });
+            // Format the message
+            const formattedMessage = `<b>${ticker}</b> : ${close}\n Al Sinyali Geldi.`;
 
-        return res.send('Trading data received and sent to the Telegram bot.');
+            // Telegram API request payload
+            const telegramPayload = {
+                chat_id: "@v1denemebot", // Replace with your Telegram group ID or channel username
+                text: formattedMessage,
+                parse_mode: "html",
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: "Grafiğe Git",
+                                url: `https://www.tradingview.com/chart/?symbol=${exchange}:${ticker}&interval=${interval}`,
+                            },
+                        ],
+                    ],
+                },
+            };
+
+            // Send the message to Telegram
+            await axios.post(`${TELEGRAM_API}/sendMessage`, telegramPayload);
+
+            return res.send('TradingView alert received and processed.');
+        }
     }
 
-    return res.status(400).send('Bad Request: No trading data found in the request.');
+    return res.status(400).send('Bad Request: Invalid or incomplete TradingView alert data.');
 });
+
 
 app.listen(process.env.PORT || 4040, async () => {
     console.log("app running on port", process.env.PORT || 4040);
